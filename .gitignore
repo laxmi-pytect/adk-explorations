@@ -1,0 +1,3 @@
+myenv/
+.env
+genai_service_account.json
