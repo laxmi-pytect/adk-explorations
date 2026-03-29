@@ -1,2 +1,6 @@
-google-adk
+google-adk==1.26.0
 python-dotenv
+langchain-community 
+wikipedia
+mcp==1.23.0
+

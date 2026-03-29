@@ -1,3 +1,8 @@
 myenv/
 .env
 genai_service_account.json
+custom-streaming-app/*
+shopping-assistant/
+shopping-assistent/
+multimodal_agent/extractors/
+multimodal_rag/
