@@ -1,0 +1,138 @@
+<!-- In index.html (Starter Code) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ADK Custom UI</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; margin: 0; }
+        #chat-container { flex: 1; overflow-y: auto; padding: 20px; }
+        .message { margin-bottom: 15px; padding: 10px; border-radius: 10px; max-width: 80%; }
+        .user { background-color: #dcf8c6; align-self: flex-end; }
+        .assistant { background-color: #f1f0f0; align-self: flex-start; }
+        #input-form { display: flex; padding: 20px; border-top: 1px solid #ccc; }
+        input { flex: 1; padding: 10px; border-radius: 5px; }
+        button { padding: 10px 20px; margin-left: 10px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div id="chat-container"></div>
+    <form id="input-form">
+        <input type="text" id="message-input" placeholder="Type your message..." autocomplete="off">
+        <button type="submit">Send</button>
+    </form>
+
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const inputForm = document.getElementById('input-form');
+        const messageInput = document.getElementById('message-input');
+        // This is a simple client-side session ID for the lab.
+        // In a real app, you would manage this more robustly.
+        //const sessionId = `session-${Date.now()}`;
+        const ADK_BASE = 'http://localhost:8080';
+        const APP_NAME = 'ui_agent';
+        const USER_ID  = 'user1';
+        let sessionId  = null;
+    
+        // This is what the real code should look like - full URL, no ...
+        async function initSession() {
+        const res = await fetch(
+            `${ADK_BASE}/apps/${APP_NAME}/users/${USER_ID}/sessions`,
+            { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }
+        );
+        if (!res.ok) {
+            console.error('Session creation failed:', res.status);
+            return;
+        }
+        const data = await res.json();
+        sessionId = data.id;
+        console.log('Session ready:', sessionId);
+
+        // Enable input only after session is ready
+        messageInput.disabled = false;
+        sendBtn.disabled = false;
+        messageInput.focus();
+        }
+
+        initSession();
+        
+        
+
+        inputForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const query = messageInput.value.trim();
+            if (!query) return;
+            addMessage(query, 'user');
+            messageInput.value = '';
+            const assistantMessageDiv = addMessage('...', 'assistant');
+            
+            try {
+                // TODO: 1. Use the `fetch` API to make a POST request to the
+                // ADK's `/run_sse` endpoint (http://localhost:8080/run_sse).
+                const response = await fetch('http://localhost:8080/run_sse', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        appName: "ui_agent",
+                        sessionId: sessionId,
+                        userId: "user1",
+                        streaming: true,
+                        newMessage: {
+                            role: "user",
+                            parts: [{ "text": query }]
+                        }
+                    })
+                });
+
+                //  2. Get the `reader` from the response body to process the stream.
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullResponse = '';
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value, { stream: true });
+                    // SSE sends data in "data: {...}\n\n" format. We need to parse it.
+                    const lines = chunk.split('\n');
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const jsonStr = line.substring(6);
+                            if (jsonStr.trim()) {
+                                const eventData = JSON.parse(jsonStr);
+                                if (eventData.partial === true) continue;   
+                                
+                                const textChunk = eventData?.content?.parts?.[0]?.text;
+
+                                if (textChunk) {
+                                    fullResponse += textChunk;
+                                    assistantMessageDiv.textContent = fullResponse;
+                                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+
+                
+                
+            } catch (error) {
+
+               assistantMessageDiv.textContent = 'Error: Could not connect to the agent.';
+                console.error('Error:', error);
+            }
+        });
+
+        function addMessage(text, role) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', role);
+            messageDiv.textContent = text;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return messageDiv;
+        }
+    </script>
+</body>
+</html>
