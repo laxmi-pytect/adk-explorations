@@ -1,0 +1,8 @@
+{
+  "name": "research_specialist",
+  "description": "Conducts web research and fact-checking",
+  "url": "http://localhost:8001/a2a/research_specialist",
+  "version": "1.0.0",
+  "capabilities": {},
+  "authentication": { "type": "none" }
+}
